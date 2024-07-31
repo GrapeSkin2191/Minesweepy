@@ -3,6 +3,7 @@ import sys
 import pygame
 import pygame_gui
 
+from scripts.menu_bar import MenuBar
 from scripts.mine_table import MineTable2D
 from scripts.utils import ConfigManager, load_images, load_sounds
 
@@ -34,8 +35,10 @@ class Game:
         self.sfx = {
             'explode': load_sounds('explode', 0.75)
         }
+        self.font = pygame.font.Font('./data/Mojangles.ttf', 512)
 
         self.mine_table = MineTable2D(self, self.data['size'], self.data['mines'])
+        self.menu_bar = MenuBar(self)
 
     def check_events(self) -> None:
         for event in pygame.event.get():
@@ -53,6 +56,11 @@ class Game:
             elif event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 1:
                     self.mine_table.left_clicked_on(event.pos)
+            elif event.type == pygame_gui.UI_BUTTON_PRESSED:
+                if event.ui_object_id == 'button_new':
+                    self.mine_table.restart()
+                elif event.ui_object_id == 'button_again':
+                    self.mine_table.restart(False)
             self.ui_manager.process_events(event)
 
     def run(self) -> None:
@@ -61,13 +69,14 @@ class Game:
             time_delta = self.clock.tick(self.fps) / 1000
 
             # draw background
-            self.screen.fill('black')  # for safety
+            self.screen.fill('black')
             for i in range(0, self.screen.get_size()[0], self.assets['background'].get_size()[0]):
                 for j in range(0, self.screen.get_size()[1], self.assets['background'].get_size()[1]):
                     self.screen.blit(self.assets['background'], (i, j))
             self.ui_manager.draw_ui(self.screen)
 
             self.mine_table.update()
+            self.menu_bar.update()
             self.ui_manager.update(time_delta)
 
             self.check_events()

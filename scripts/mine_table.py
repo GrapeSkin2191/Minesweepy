@@ -20,9 +20,11 @@ class MineTable2D:
         self.game = game
         self.grid_size = grid_size
         self.mine_total = mine_total
+        self.game_time: int = 0  # measured in frames
         self.grid = []  # -1 for mine; positive values for the number of nearby mines
         self.grid_state = []  # use enum TileState for values
         self.tile_cleared = 0
+        self.tile_flagged = 0
         for i in range(self.grid_size[0]):
             self.grid.append([0] * self.grid_size[1])
             self.grid_state.append([TileState.none] * self.grid_size[1])
@@ -33,8 +35,7 @@ class MineTable2D:
         self.border: int = 10
         self.default_top_border = 80
         self.top_border = self.default_top_border
-        self.font = pygame.font.Font('./data/Mojangles.ttf', 512)
-        self.default_numbers = [self.font.render(str(i), True, pygame.Color(c))
+        self.default_numbers = [self.game.font.render(str(i), True, pygame.Color(c))
                                 for i, c in enumerate(self.game.config['Color'], 1)]
         self.anim_dict: dict[tuple[int, int], tuple[SimpleAnimation, tuple[float, float]]] = {}
 
@@ -69,6 +70,21 @@ class MineTable2D:
                                 and self.grid[i + dx][j + dy] == -1:
                             self.grid[i][j] += 1
 
+    def restart(self, new: bool = True):
+        self.game_time: int = 0
+        self.tile_cleared = 0
+        self.tile_flagged = 0
+        if new:
+            self.generated = False
+        for i in range(self.grid_size[0]):
+            for j in range(self.grid_size[1]):
+                self.grid_state[i][j] = TileState.none
+                if new:
+                    self.grid[i][j] = 0
+        self.over = False
+        self.anim_dict.clear()
+        self.double_click_dict.clear()
+
     def right_clicked_on(self, pos: tuple[int, int]) -> None:  # right click to flag
         if self.over:
             return
@@ -77,8 +93,10 @@ class MineTable2D:
                                       self.grid_state[x][y] == TileState.flagged):
             if self.grid_state[x][y] == TileState.none:
                 self.grid_state[x][y] = TileState.flagged
+                self.tile_flagged += 1
             elif self.grid_state[x][y] == TileState.flagged:
                 self.grid_state[x][y] = TileState.none
+                self.tile_flagged -= 1
 
     def left_clicked_on(self, pos: tuple[int, int], player_click: bool = True) -> None:  # left click to clear
         if self.over:
@@ -101,7 +119,6 @@ class MineTable2D:
                     while len(queue):
                         sx, sy = queue.pop(0)
                         visited[sx][sy] = True
-
                         if self.grid[sx][sy] != -1 and self.grid_state[sx][sy] != TileState.cleared:
                             self.grid_state[sx][sy] = TileState.cleared
                             self.tile_cleared += 1
@@ -157,14 +174,18 @@ class MineTable2D:
         print('all clear')
         for i in range(self.grid_size[0]):
             for j in range(self.grid_size[1]):
-                if self.grid[i][j] == -1:
+                if self.grid[i][j] == -1 and self.grid_state[i][j] != TileState.flagged:
                     self.grid_state[i][j] = TileState.flagged
+                    self.tile_flagged += 1
 
     def wheel_clicked_on(self, pos: tuple[int, int]) -> None:  # TODO only for debugging
         x, y = self.pixel_to_grid(*pos)
         print(f'Tile({x},{y}): {self.grid[x][y]}, {self.grid_state[x][y]}')
 
     def update(self) -> None:
+        if not self.over:
+            self.game_time += 1
+
         # handle double clicks
         delete = set()
         for key in self.double_click_dict:
@@ -179,17 +200,17 @@ class MineTable2D:
         screen_size: tuple[int, int] = self.game.screen.get_size()
         self.top_border = (round(self.default_top_border * screen_size[1] / self.game.config['Graphics']['size'][1])
                            + self.border)
-        grid_size = (screen_size[0] - self.border * 2, screen_size[1] - self.border - self.top_border)
-        if grid_size[0] / self.grid_size[0] <= grid_size[1] / self.grid_size[1]:
-            self.tile_size = round(grid_size[0] / self.grid_size[0])
+        table_size = (screen_size[0] - self.border * 2, screen_size[1] - self.border - self.top_border)
+        if table_size[0] / self.grid_size[0] <= table_size[1] / self.grid_size[1]:
+            self.tile_size = round(table_size[0] / self.grid_size[0])
             self.pos = [
                 self.border + 1,
-                round((self.top_border + 1) + grid_size[1] / 2 - self.grid_size[1] * self.tile_size / 2),
+                round((self.top_border + 1) + table_size[1] / 2 - self.grid_size[1] * self.tile_size / 2),
             ]
         else:
-            self.tile_size = round(grid_size[1] / self.grid_size[1])
+            self.tile_size = round(table_size[1] / self.grid_size[1])
             self.pos = [
-                round((self.border + 1) + grid_size[0] / 2 - self.grid_size[0] * self.tile_size / 2),
+                round((self.border + 1) + table_size[0] / 2 - self.grid_size[0] * self.tile_size / 2),
                 self.top_border + 1,
             ]
         tile = pygame.transform.scale(self.game.assets['tile'], (self.tile_size, self.tile_size))
