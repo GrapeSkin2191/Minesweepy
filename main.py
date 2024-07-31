@@ -56,6 +56,7 @@ class Game:
             self.ui_manager.process_events(event)
 
     def run(self) -> None:
+        # main loop
         while True:
             time_delta = self.clock.tick(self.fps) / 1000
 

@@ -1,5 +1,5 @@
-from enum import Enum, unique
 import math
+from enum import Enum, unique
 from random import choice, randint, random, uniform
 
 import pygame
@@ -21,7 +21,7 @@ class MineTable2D:
         self.grid_size = grid_size
         self.mine_total = mine_total
         self.grid = []  # -1 for mine; positive values for the number of nearby mines
-        self.grid_state = []  # default 0; 1 for cleared; 2 for flagged; 3 for visible mines
+        self.grid_state = []  # use enum TileState for values
         self.tile_cleared = 0
         for i in range(self.grid_size[0]):
             self.grid.append([0] * self.grid_size[1])
@@ -43,16 +43,16 @@ class MineTable2D:
         self.double_click_dict: dict[tuple[int, int], int] = {}
         self.double_click_time = 30  # 0.5s under 60fps
 
-    def pixel_to_grid(self, x: int, y: int) -> tuple[int, int]:
+    def pixel_to_grid(self, x: int, y: int) -> tuple[int, int]:  # convert a pixel coordinate to a grid one
         return math.floor((x - self.pos[0]) / self.tile_size), math.floor((y - self.pos[1]) / self.tile_size)
 
-    def grid_to_pixel(self, x: int, y: int) -> tuple[int, int]:
+    def grid_to_pixel(self, x: int, y: int) -> tuple[int, int]:  # convert a grid coordinate to a pixel one
         return self.pos[0] + self.tile_size * x, self.pos[1] + self.tile_size * y
 
-    def is_in_grid(self, x: int, y: int) -> bool:
+    def is_in_grid(self, x: int, y: int) -> bool:  # decides if a coordinate is in the grid
         return 0 <= x < self.grid_size[0] and 0 <= y < self.grid_size[1]
 
-    def generate(self, clicked_pos: tuple[int, int]) -> None:
+    def generate(self, clicked_pos: tuple[int, int]) -> None:  # generate the mines
         for _ in range(self.mine_total):
             x = randint(0, self.grid_size[0] - 1)
             y = randint(0, self.grid_size[1] - 1)
@@ -139,7 +139,7 @@ class MineTable2D:
                 else:
                     self.double_click_dict[(x, y)] = 0
 
-    def game_over(self) -> None:
+    def game_over(self) -> None:  # mine triggered
         self.over = True
         print('game over')
         choice(self.game.sfx['explode']).play(fade_ms=100)
@@ -152,7 +152,7 @@ class MineTable2D:
                         (random(), random())
                     )
 
-    def all_clear(self) -> None:
+    def all_clear(self) -> None:  # all mines are cleared
         self.over = True
         print('all clear')
         for i in range(self.grid_size[0]):
@@ -213,7 +213,7 @@ class MineTable2D:
                     elif self.grid_state[i][j] == TileState.mine_visible:
                         self.game.screen.blit(mine, pos)
 
-        # 显示左键按下效果
+        # display a rectangle to show nearby tiles
         if not self.over:
             x, y = self.pixel_to_grid(*pygame.mouse.get_pos())
             if self.is_in_grid(x, y):
